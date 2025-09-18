@@ -3,6 +3,7 @@
   --fg: #88ff88;
   --muted: #2ea44f;
   --accent: #ffffff;
+  --ui-scale: 1;
 }
 body.alt-theme {
   --bg: #0d1730;
@@ -44,12 +45,13 @@ body {
   z-index: 2;
   backdrop-filter: blur(2px);
   opacity: 0;
-  transform: translateY(12px);
+  transform: translateY(12px) scale(var(--ui-scale));
+  transform-origin: top left;
   transition: opacity 520ms cubic-bezier(.2,.7,.2,1), transform 520ms cubic-bezier(.2,.7,.2,1);
 }
 .menu.show {
   opacity: 1;
-  transform: translateY(0);
+  transform: translateY(0) scale(var(--ui-scale));
 }
 
 .logo {
