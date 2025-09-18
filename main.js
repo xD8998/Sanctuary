@@ -24,7 +24,12 @@ const tips = [
 ];
 let tipI = 0; if (tipEl) { tipEl.textContent = tips[0]; setInterval(()=>{ tipEl.classList.add('hide'); setTimeout(()=>{ tipI=(tipI+1)%tips.length; tipEl.textContent=tips[tipI]; tipEl.classList.remove('hide'); }, 320); }, 16000); }
 
+// crossfade snapshot for less-noticeable rescale
+let snap = null, snapAlpha = 0;
+
 function resize() {
+  // take snapshot before changing sizes
+  if (bg.width && bg.height) { const s = document.createElement('canvas'); s.width = bg.width; s.height = bg.height; s.getContext('2d').drawImage(bg,0,0); snap = s; snapAlpha = 1; }
   bg.width = innerWidth * dpr;
   bg.height = innerHeight * dpr;
   bgCtx.imageSmoothingEnabled = false;
@@ -35,6 +40,9 @@ function resize() {
   viz.width = innerWidth * dpr;
   viz.height = innerHeight * dpr;
   vctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  // UI scale for small windows
+  const ui = Math.min(1, Math.max(0.8, Math.min(innerWidth/900, innerHeight/700)));
+  document.documentElement.style.setProperty('--ui-scale', ui.toFixed(2));
   vctx.imageSmoothingEnabled = false;
 }
 addEventListener('resize', resize);
@@ -68,6 +76,12 @@ function renderPlasma(t) {
   bgCtx.clearRect(0, 0, bg.width, bg.height);
   bgCtx.drawImage(low, 0, 0, bg.width, bg.height);
   bgCtx.restore();
+  // crossfade old buffer over new scale
+  if (snap && snapAlpha > 0) {
+    bgCtx.save(); bgCtx.globalAlpha = snapAlpha; bgCtx.imageSmoothingEnabled = false;
+    bgCtx.drawImage(snap, 0, 0, bg.width, bg.height);
+    bgCtx.restore(); snapAlpha = Math.max(0, snapAlpha - 0.08); if (!snapAlpha) snap = null;
+  }
 }
 
 // Audio + Visualizer
@@ -80,7 +94,7 @@ function setupAudio() {
   if (started) return;
   actx = new (window.AudioContext || window.webkitAudioContext)();
   analyser = actx.createAnalyser();
-  analyser.fftSize = (hwThreads <= 4 || devMem <= 4) ? 256 : 512;
+  analyser.fftSize = (hwThreads <= 2 || devMem <= 2) ? 128 : ((hwThreads <= 4 || devMem <= 4) ? 256 : 512);
   analyser.smoothingTimeConstant = 0.7;
   const src = actx.createMediaElementSource(audioEl);
   gainNode = actx.createGain(); gainNode.gain.value = 0.0;
@@ -214,6 +228,8 @@ function frame(t) {
   const dt = t - last || 16;
   const fps = 1000 / dt;
   emaFPS = emaFPS * 0.9 + fps * 0.1;
+  // adjust viz FPS for low-end devices
+  if (emaFPS < 35) { quality.vizFPS = 20; } else if (emaFPS > 55) { quality.vizFPS = 30; }
   // adaptive background quality
   if (emaFPS < 45 && quality.scale > 0.4) { quality.scale = Math.max(0.4, quality.scale - 0.05); resize(); }
   else if (emaFPS > 58 && quality.scale < 1.0) { quality.scale = Math.min(1.0, quality.scale + 0.05); resize(); }
