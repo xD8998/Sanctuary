@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Smooth Menu</title>
+  <title>Sanctuary</title>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
@@ -56,6 +56,10 @@
       <h2>Settings</h2>
       <label class="vol-row">Main Menu Volume <span id="vol-value">100%</span></label>
       <input id="vol" type="range" min="0" max="100" value="100" step="1" />
+      <label class="vol-row" style="display:flex;align-items:center;gap:8px;">
+        <input id="skip-htp" type="checkbox" />
+        <span>Auto-skip How To Play popups</span>
+      </label>
       <button id="close-settings" class="close-btn" aria-label="Close settings">Back</button>
     </div>
   </div>
