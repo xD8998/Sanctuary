@@ -517,6 +517,17 @@ function renderBeaconPreview(canvas){
   c.fill(); c.shadowBlur=0; c.lineWidth=3; c.strokeStyle='#5a1e1e'; c.stroke(); c.fillStyle='#0a0a0a'; c.font=`${Math.floor(s*0.26)}px "Space Mono"`; c.textAlign='center'; c.textBaseline='middle'; c.fillText('BEACON', x+s/2, y+s/2+2); c.restore();
 }
 
+function renderImportantNotePreview(canvas){
+  const c=canvas.getContext('2d'), w=canvas.width, h=canvas.height;
+  c.fillStyle='#0a0a0a'; c.fillRect(0,0,w,h);
+  const s=Math.min(w*0.8,h*0.7), x=(w-s)/2, y=(h-s)/2, r=s*0.18;
+  c.save(); c.shadowColor='#ff3b3b'; c.shadowBlur=18;
+  const g=c.createLinearGradient(0,y,0,y+s); g.addColorStop(0,'#ff9b9b'); g.addColorStop(1,'#ff3b3b');
+  c.fillStyle=g; c.roundRect ? c.roundRect(x,y,s,s,r) : (c.beginPath(), c.moveTo(x+r,y), c.arcTo(x+s,y,x+s,y+s,r), c.arcTo(x+s,y+s,x,y+s,r), c.arcTo(x,y+s,x,y,r), c.arcTo(x,y,x+s,y,r), c.closePath());
+  c.fill(); c.shadowBlur=0; c.fillStyle='#0a0a0a'; c.font=`${Math.floor(s*0.6)}px "Space Mono"`; c.textAlign='center'; c.textBaseline='middle';
+  c.fillText('!', x+s/2, y+s*0.52); c.restore();
+}
+
 function tip(text){
   hud.dataset.tip = text;
   hud.title = text;
@@ -858,6 +869,7 @@ function maybeShowAdvancedTutorial(force=false){
     ()=>{ const b=document.createElement('div'); b.innerHTML='<div><b>Blue ghosts</b> — SAFE: they won\'t kill you, but you <i>cannot</i> move through them. They wander and can pass through walls and other ghosts.</div>'; const cv=document.createElement('canvas'); cv.width=260; cv.height=260; cv.style.display='block'; cv.style.margin='12px auto'; renderGhostPreview(cv,'#6bb7ff'); b.appendChild(cv); return b; },
     ()=>{ const kd=document.createElement('div'); kd.innerHTML='<div><b>Key & Locked Door</b> — if the door glows dim/locked, grab the KEY to unlock it. Bonus: picking up the KEY stuns <b>Blue ghosts</b> so you can slide through them for <b>6.0 seconds</b>.</div>'; const cv=document.createElement('canvas'); cv.width=420; cv.height=200; cv.style.display='block'; cv.style.margin='12px auto'; renderKeyDoorPreview(cv); kd.appendChild(cv); return kd; }
   ];
+  basics.push(importantNotePage);
   const adv = [
     ()=>{ const wrap=document.createElement('div'); wrap.innerHTML='<div><b>Purple ghost (rare)</b> — touching it causes a reality twist: either a short-range warp along a direction or a full horizontal/vertical flip. It only happens if the puzzle stays solvable.</div>'; const cv=document.createElement('canvas'); cv.width=240; cv.height=240; cv.style.display='block'; cv.style.margin='10px auto'; renderGhostPreview(cv,'#b86bff'); wrap.appendChild(cv); return wrap; },
     ()=>{ const wrap=document.createElement('div'); wrap.innerHTML='<div><b>Orange ghost (rare)</b> — triggers slow‑mo DRIFT: you may choose <b>one</b> mid‑slide turn; effect ends right after that turn.</div>'; const cv=document.createElement('canvas'); cv.width=240; cv.height=240; cv.style.display='block'; cv.style.margin='10px auto'; renderGhostPreview(cv,'#ff9b42'); wrap.appendChild(cv); return wrap; },
@@ -884,6 +896,7 @@ function maybeShowIntroTutorialV2(force=false){
     ()=>{ const b=document.createElement('div'); b.innerHTML='<div><b>Blue ghosts</b> — SAFE: they won\'t kill you, but you <i>cannot</i> move through them. They wander and can pass through walls and other ghosts.</div>'; const cv=document.createElement('canvas'); cv.width=260; cv.height=260; cv.style.display='block'; cv.style.margin='12px auto'; renderGhostPreview(cv,'#6bb7ff'); b.appendChild(cv); return b; },
     ()=>{ const kd=document.createElement('div'); kd.innerHTML='<div><b>Key & Locked Door</b> — if the door glows dim/locked, grab the KEY to unlock it. Bonus: picking up the KEY stuns <b>Blue ghosts</b> so you can slide through them for <b>6.0 seconds</b>.</div>'; const cv=document.createElement('canvas'); cv.width=420; cv.height=200; cv.style.display='block'; cv.style.margin='12px auto'; renderKeyDoorPreview(cv); kd.appendChild(cv); return kd; }
   ];
+  pages.push(importantNotePage);
   const adv = [
     ()=>{ const wrap=document.createElement('div'); wrap.innerHTML='<div><b>Purple ghost (rare)</b> — touching it causes a reality twist: either a short-range warp along a direction or a full horizontal/vertical flip. It only happens if the puzzle stays solvable.</div>'; const cv=document.createElement('canvas'); cv.width=240; cv.height=240; cv.style.display='block'; cv.style.margin='10px auto'; renderGhostPreview(cv,'#b86bff'); wrap.appendChild(cv); return wrap; },
     ()=>{ const wrap=document.createElement('div'); wrap.innerHTML='<div><b>Orange ghost (rare)</b> — triggers slow‑mo DRIFT: you may choose <b>one</b> mid‑slide turn; effect ends right after that turn.</div>'; const cv=document.createElement('canvas'); cv.width=240; cv.height=240; cv.style.display='block'; cv.style.margin='10px auto'; renderGhostPreview(cv,'#ff9b42'); wrap.appendChild(cv); return wrap; }
@@ -926,6 +939,12 @@ function renderKeyDoorPreview(canvas){
   c.save(); c.shadowColor='#ffd84a'; c.shadowBlur=18; c.fillStyle='#ffd84a'; c.fillRect(dx,dy,ds,ds); c.restore();
   c.strokeStyle='#222'; c.lineWidth=4; c.beginPath(); c.arc(dx+ds*0.5,dy+ds*0.5,Math.min(12,ds*0.16),0,Math.PI*2); c.stroke();
 }
+
+const importantNotePage = ()=> {
+  const w=document.createElement('div');
+  w.innerHTML='<div><b>Note on Generation & Soft‑locks</b> — Levels are procedurally generated. Despite multiple safeguards, rare layouts can be unsolvable or lead to a soft‑lock (you can still slide, but no sequence can reach the key or door). If this occurs, restart the run: press R, then press R again to instantly reset to Level 1.</div>';
+  const cv=document.createElement('canvas'); cv.width=420; cv.height=200; cv.style.display='block'; cv.style.margin='12px auto'; renderImportantNotePreview(cv); w.appendChild(cv); return w;
+};
 
 function showPager(sections, storageKey, finalLabel='Close', addSkip=false, startSection='basics'){
   running = false;
