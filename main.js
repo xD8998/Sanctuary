@@ -86,6 +86,12 @@ function renderPlasma(t) {
 
 // Audio + Visualizer
 const audioEl = document.getElementById('track');
+/* set saved volume on load */
+try {
+  const sv = Math.max(0, Math.min(100, Number(localStorage.getItem('menu_volume')||'100')));
+  audioEl.volume = sv/100;
+} catch {}
+
 let actx, source, analyser, dataArray, started = false, gainNode, pendingLoop = false, lowpass;
 
 const vctx = viz.getContext('2d');
@@ -326,13 +332,14 @@ const settingsEl = document.getElementById('settings');
 const closeSettings = document.getElementById('close-settings');
 const volSlider = document.getElementById('vol');
 const volValue = document.getElementById('vol-value');
+const skipHtpCb = document.getElementById('skip-htp');
 
 function openSettings() {
   document.body.classList.add('settings-open');
   settingsEl.hidden = false; settingsEl.setAttribute('aria-hidden','false');
-  // init slider from current volume
-  const v = Math.round((audioEl.volume ?? 1) * 100);
-  volSlider.value = String(v); volValue.textContent = v + '%';
+  const sv = Math.max(0, Math.min(100, Number(localStorage.getItem('menu_volume')||Math.round((audioEl.volume??1)*100))));
+  volSlider.value = String(sv); volValue.textContent = sv + '%';
+  skipHtpCb.checked = localStorage.getItem('runner_skip_htp') === '1';
   requestAnimationFrame(()=> settingsEl.classList.add('show'));
   if (started) { lowpass.frequency.setTargetAtTime(900, actx.currentTime, 0.2); fadeTo(0.5, 0.9); }
 }
@@ -353,6 +360,13 @@ volSlider.addEventListener('input', () => {
   const v = Math.max(0, Math.min(100, Number(volSlider.value) || 0));
   volValue.textContent = v + '%';
   audioEl.volume = v / 100;
+  try { localStorage.setItem('menu_volume', String(v)); } catch {}
+});
+skipHtpCb.addEventListener('change', () => {
+  try {
+    if (skipHtpCb.checked) localStorage.setItem('runner_skip_htp','1');
+    else localStorage.removeItem('runner_skip_htp');
+  } catch {}
 });
 
 function createBitcrusher(ctx, { bits = 12, reduction = 3 } = {}) {
