@@ -17,6 +17,8 @@ let bats=[], beacons=[], flyingBat=null, timeNow=0;
 // DEV tools
 let dev = { unlocked:false, show:false, enabled:false, antiRed:false, antiBlue:false, noclip:false, autoKey:false, antiOrange:false, antiPurple:false, antiCrimson:false, showHit:false, slowDrift:false };
 let devPanel = null, devCountsEl = null;
+let _regenTries = 0;
+let _skipPopups = false, _resetArmed = false, _resetTimer = 0;
 
 export async function initGame(args={}) {
   actx = args.actx || new (window.AudioContext || window.webkitAudioContext)();
@@ -52,8 +54,9 @@ export async function initGame(args={}) {
   window.addEventListener('resize', resize);
   genLevel(1);
   resize();
+  _skipPopups = (localStorage.getItem('runner_skip_htp') === '1');
   // show intro tutorial once
-  requestAnimationFrame(()=> maybeShowIntroTutorialV2());
+  requestAnimationFrame(()=> maybeShowIntroTutorialV2(!_skipPopups /* force if user-initiated only */));
   running = true;
   requestAnimationFrame(()=> resize());
   fadeInGame(); // visual fade-in
@@ -107,6 +110,9 @@ function genLevel(n) {
     const batCount = 2; for (let i=0;i<batCount;i++) bats.push(placeOne(avoid,true));
     if (Math.random()<0.7) beacons.push(placeOne(avoid,true));
   }
+  // validity: must be solvable (key considered, blues ignored) and have a safe opening move (no forced red)
+  const ok = slideSolvable(walls, !doorUnlocked, green) && hasSafeFirstMove();
+  if (!ok) { if (++_regenTries < 80) return genLevel(n); else _regenTries = 0; } else { _regenTries = 0; }
   tip(level>=4 ? (doorUnlocked?'Blues appeared!':'Door locked! Find the key.')
                : (level>=2 ? 'Red ghosts prowl.' : 'Reach the door →'));
   draw();
@@ -138,6 +144,26 @@ function removeAt(arr,x,y){ const i = arr.findIndex(a=>a.x===x&&a.y===y); if(i>=
 
 /* Input */
 function onKey(e){
+  // instant reset: double R (second R confirms)
+  if (e.key === 'r' || e.key === 'R') {
+    e.preventDefault();
+    if (_resetArmed) { _resetArmed = false; clearTimeout(_resetTimer); if (overlay) { overlay.remove(); overlay=null; } restartRun(); return; }
+    _resetArmed = true;
+    showOverlay(`
+      <div style="text-align:center; display:grid; gap:10px;">
+        <div>Are you sure you want to restart from Level 1?</div>
+        <div style="opacity:0.85;">Press R again to confirm, or click No to cancel.</div>
+        <div style="display:flex; gap:8px; justify-content:center;">
+          <button id="yes">Yes</button><button id="no">No</button>
+        </div>
+      </div>
+    `);
+    styleOverlayButtons();
+    overlay.querySelector('#yes').onclick=()=>{ _resetArmed=false; if (overlay) { overlay.remove(); overlay=null; } restartRun(); };
+    overlay.querySelector('#no').onclick=()=>{ _resetArmed=false; if (overlay) { overlay.remove(); overlay=null; } };
+    _resetTimer = setTimeout(()=>{ _resetArmed=false; if (overlay) { overlay.remove(); overlay=null; } }, 3000);
+    return;
+  }
   // Block input when not running or when any overlay/tutorial is open
   if (!running || tutOverlay || overlay) return;
   if (moveLock) {
@@ -210,6 +236,7 @@ function slide(dir){
 
 function animateMove(path, done, initialDir){
   let i=0;
+  let curDir = initialDir || null;
   const step = () => {
     player.x = path[i].x; player.y = path[i].y;
     spawnTrail(player.x, player.y);
@@ -230,11 +257,9 @@ function animateMove(path, done, initialDir){
     // mid-slide turn if orange drift pending
     if ((orangeDrift || dev.slowDrift) && pendingTurn) {
       const dir = pendingTurn; pendingTurn = null;
-      const newSeg = computeSegmentFrom(player.x, player.y, dir);
-      if (newSeg.length) {
-        if (!dev.slowDrift) orangeDrift = false; // consume only in normal orange drift
-        path = newSeg; i = 0;
-        // continue in slow-mo for the rest of this slide
+      if (!(curDir && dir.x===curDir.x && dir.y===curDir.y)) {
+        const newSeg = computeSegmentFrom(player.x, player.y, dir);
+        if (newSeg.length) { if (!dev.slowDrift) orangeDrift = false; path = newSeg; i = 0; curDir = dir; }
       }
     }
     i++;
@@ -514,11 +539,13 @@ function createControls(){
   const bMenu = document.createElement('button');
   bMenu.textContent='Menu';
   const bHow = document.createElement('button'); bHow.textContent='How To Play';
-  [bRestart,bMenu,bHow].forEach(b=>{ b.style.fontFamily='"Space Mono", monospace'; b.style.fontSize='14px'; b.style.background='transparent'; b.style.color='#fff'; b.style.border='2px solid rgba(255,255,255,0.25)'; b.style.padding='10px 14px'; b.style.boxShadow='0 0 0 4px #000 inset'; b.style.transition='transform 120ms ease, background-color 160ms ease'; b.onmouseenter=()=> blip(620,0.05,'square',0.18); b.onmouseover=()=>{ b.style.background='rgba(255,255,255,0.06)'; }; b.onmouseout=()=>{ b.style.background='transparent'; }; b.onmousedown=()=>{ b.style.transform='scale(0.98)'; }; b.onmouseup=()=>{ b.style.transform='scale(1)'; }; });
+  const bOpts = document.createElement('button'); bOpts.textContent='Options';
+  [bRestart,bMenu,bHow,bOpts].forEach(b=>{ b.style.fontFamily='"Space Mono", monospace'; b.style.fontSize='14px'; b.style.background='transparent'; b.style.color='#fff'; b.style.border='2px solid rgba(255,255,255,0.25)'; b.style.padding='10px 14px'; b.style.boxShadow='0 0 0 4px #000 inset'; b.style.transition='transform 120ms ease, background-color 160ms ease'; b.onmouseenter=()=> blip(620,0.05,'square',0.18); b.onmouseover=()=>{ b.style.background='rgba(255,255,255,0.06)'; }; b.onmouseout=()=>{ b.style.background='transparent'; }; b.onmousedown=()=>{ b.style.transform='scale(0.98)'; }; b.onmouseup=()=>{ b.style.transform='scale(1)'; }; });
   bRestart.onclick = ()=> confirmRestart();
   bMenu.onclick = ()=> confirmMenu();
-  bHow.onclick = ()=> maybeShowIntroTutorialV2();
-  root.appendChild(btns); btns.appendChild(bRestart); btns.appendChild(bHow); btns.appendChild(bMenu);
+  bHow.onclick = ()=> maybeShowIntroTutorialV2(true);
+  bOpts.onclick = ()=> openGameOptions();
+  root.appendChild(btns); btns.appendChild(bRestart); btns.appendChild(bHow); btns.appendChild(bOpts); btns.appendChild(bMenu);
 }
 
 function showOverlay(html){
@@ -653,12 +680,28 @@ function fadeInGame(){
 // walls generation and solvability using sliding BFS
 function generateWallsAndKey(blockDoor){
   const targetMax=Math.min(Math.floor(level*1.5)+3, Math.floor((gridW*gridH)*0.18));
-  for(let tries=0;tries<100;tries++){
+  for(let tries=0;tries<200;tries++){
     const temp=[]; while(temp.length<targetMax){ const p=randCell(); if((p.x===player.x&&p.y===player.y)||(p.x===door.x&&p.y===door.y)||temp.some(t=>t.x===p.x&&t.y===p.y)) continue; temp.push(p); }
+    // reject layouts that fully block any row or column (minus start/door)
+    if (blocksRowOrCol(temp)) continue;
     let key=null, locked=!!blockDoor; if(locked){ const avoid=new Set([player.x+','+player.y,door.x+','+door.y,...temp.map(w=>w.x+','+w.y)]); key=placeOne(avoid,true); }
     if(slideSolvable(temp, locked, key)){ walls=temp; green=key; doorUnlocked=!locked; return; }
   }
   walls=[]; green=null; doorUnlocked=true;
+}
+function blocksRowOrCol(blocks){
+  const rowCount = Array(gridH).fill(0), colCount = Array(gridW).fill(0);
+  blocks.forEach(b=>{ rowCount[b.y]++; colCount[b.x]++; });
+  // if a row is fully blocked except possibly start/door cells, reject
+  for (let y=0;y<gridH;y++){
+    const maxWalls = gridW - 1; // leave at least 1 gap
+    if (rowCount[y] >= maxWalls) return true;
+  }
+  for (let x=0;x<gridW;x++){
+    const maxWalls = gridH - 1;
+    if (colCount[x] >= maxWalls) return true;
+  }
+  return false;
 }
 function slideSolvable(blocks, locked, key){
   // Treat blue ghosts as waitable (non-blocking) for solvability; only walls and locked door block.
@@ -668,6 +711,17 @@ function slideSolvable(blocks, locked, key){
   while(q.length){ const n=q.shift(); if((!locked||n.k) && (n.x+','+n.y)===D) return true;
     for(const [dx,dy] of dirs){ const s=stop(n.x,n.y,dx,dy,n.k); const st=enc(s.x,s.y,s.k); if(!seen.has(st)){ seen.add(st); q.push(s); } } }
   return false;
+}
+
+// ensure at least one opening direction doesn't force landing on a red
+function hasSafeFirstMove(){
+  const dirs = [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}];
+  return dirs.some(d => {
+    const seg = computeSegmentFrom(player.x, player.y, d);
+    if (!seg.length) return false;
+    const last = seg[seg.length-1];
+    return !reds.some(r => r.x===last.x && r.y===last.y);
+  });
 }
 
 // fade-out helper when leaving game
@@ -793,7 +847,8 @@ function triggerBeacon(){
 
 function shuffleArray(a){ for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; } }
 
-function maybeShowAdvancedTutorial(){
+function maybeShowAdvancedTutorial(force=false){
+  if (_skipPopups && !force) return;
   if (level !== 10 || localStorage.getItem('runner_tut_adv')==='1' || tutOverlay || advancedShown) return;
   advancedShown = true; try { localStorage.setItem('runner_tut_adv','1'); } catch {}
   const basics = [
@@ -820,7 +875,8 @@ function maybeShowAdvancedTutorial(){
   showPager({ basics, advanced: adv }, 'runner_tut_adv', 'Got it', true, 'advanced');
 }
 
-function maybeShowIntroTutorialV2(){
+function maybeShowIntroTutorialV2(force=false){
+  if (_skipPopups && !force) { running = true; moveLock=false; raf=requestAnimationFrame(loop); return; }
   const pages = [
     ()=>{ const wrap=document.createElement('div'); wrap.innerHTML='<div><b>You</b> — the white cube. Slide with Arrow Keys/WASD. HUD (top‑left) shows Level / Score / High / Power.</div>'; const cv=document.createElement('canvas'); cv.width=260; cv.height=260; cv.style.display='block'; cv.style.margin='12px auto'; renderPlayerPreview(cv); wrap.appendChild(cv); return wrap; },
     ()=>{ const w=document.createElement('div'); w.innerHTML='<div><b>Walls</b> — dark gray tiles with bright edges. They stop your slide.</div>'; const cv=document.createElement('canvas'); cv.width=260; cv.height=180; cv.style.display='block'; cv.style.margin='12px auto'; renderWallPreview(cv); w.appendChild(cv); return w; },
@@ -974,4 +1030,29 @@ function drawHitboxes(){
   bats.forEach(b=> box(b.x,b.y,'#ddd'));
   beacons.forEach(b=> box(b.x,b.y,'#ff5a5a'));
   box(player.x, player.y, '#fff');
+}
+
+function openGameOptions(){
+  showOverlay(`
+    <div style="display:grid;gap:12px;min-width:260px;">
+      <div style="font-weight:700;">Options</div>
+      <label class="vol-row" style="color:#fff;">Main Menu Volume <span id="volv">...</span></label>
+      <input id="gm-vol" type="range" min="0" max="100" step="1" />
+      <label class="vol-row" style="display:flex;align-items:center;gap:8px;color:#fff;">
+        <input id="gm-skip" type="checkbox" class="pixel-check" />
+        <span>Auto-skip How To Play popups</span>
+      </label>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button id="opt-close">Back</button>
+      </div>
+    </div>
+  `);
+  styleOverlayButtons();
+  const vol = overlay.querySelector('#gm-vol'), vv = overlay.querySelector('#volv'), sk = overlay.querySelector('#gm-skip');
+  const sv = Math.max(0, Math.min(100, Number(localStorage.getItem('menu_volume')||'100')));
+  vol.value = String(sv); vv.textContent = sv + '%';
+  sk.checked = localStorage.getItem('runner_skip_htp') === '1';
+  vol.oninput = ()=> { const v = Math.max(0, Math.min(100, Number(vol.value)||0)); vv.textContent = v+'%'; try{ localStorage.setItem('menu_volume', String(v)); }catch{} };
+  sk.onchange = ()=> { try{ sk.checked ? localStorage.setItem('runner_skip_htp','1') : localStorage.removeItem('runner_skip_htp'); }catch{} };
+  overlay.querySelector('#opt-close').onclick = ()=> { overlay.remove(); overlay=null; };
 }
