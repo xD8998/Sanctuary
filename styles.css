@@ -350,3 +350,8 @@ body.in-game .menu, body.in-game #viz, body.in-game #bg, body.in-game .start-scr
 #vol::-moz-range-track { height: 6px; background:#3a2a00; box-shadow: 0 0 0 4px #000 inset; }
 #vol::-moz-range-thumb { width:18px; height:18px; background:#ffa733; box-shadow:0 0 0 4px #000 inset; border:none; }
 #vol:focus { outline: 2px solid rgba(255,167,51,0.5); outline-offset: 2px; }
+
+.vol-row input[type="checkbox"], .pixel-check { appearance: none; width: 18px; height: 18px; background:#111; border:2px solid rgba(255,255,255,0.22); box-shadow:0 0 0 4px #000 inset; cursor:pointer; display:inline-block; }
+.vol-row input[type="checkbox"]:checked, .pixel-check:checked { background:#ffa733; border-color:#ffa733; }
+.vol-row input[type="checkbox"]::after, .pixel-check::after { content:""; display:block; width:10px; height:10px; margin:1px auto 0; background:rgba(0,0,0,0.6); clip-path: polygon(10% 50%, 0 60%, 40% 100%, 100% 20%, 90% 10%, 40% 70%); opacity:0; }
+.vol-row input[type="checkbox"]:checked::after, .pixel-check:checked::after { opacity:1; }
