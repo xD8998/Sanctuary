@@ -19,6 +19,7 @@ let dev = { unlocked:false, show:false, enabled:false, antiRed:false, antiBlue:f
 let devPanel = null, devCountsEl = null;
 let _regenTries = 0;
 let _skipPopups = false, _resetArmed = false, _resetTimer = 0;
+let versionElGame = null;
 
 export async function initGame(args={}) {
   actx = args.actx || new (window.AudioContext || window.webkitAudioContext)();
@@ -61,6 +62,8 @@ export async function initGame(args={}) {
   requestAnimationFrame(()=> resize());
   fadeInGame(); // visual fade-in
   loop(performance.now());
+  // version badge (bottom-left, in-game)
+  if (!versionElGame) { versionElGame = document.createElement('div'); versionElGame.className='version-badge version-game'; versionElGame.textContent='V1'; root.appendChild(versionElGame); }
 }
 
 export function destroyGame(){
@@ -73,6 +76,7 @@ export function destroyGame(){
   window.removeEventListener('resize', resize);
   if (ro) { try { ro.disconnect(); } catch {} ro = null; }
   if (root) root.innerHTML='';
+  versionElGame = null;
 }
 
 /* Level generation */
@@ -610,10 +614,11 @@ function restartRun(){
 }
 
 function confirmRestart(){
+  const hsMsg = dev.enabled ? 'High score won\'t be saved anyway as you\'re in DEV mode.' : 'High score stays saved.';
   showOverlay(`
     <div style="text-align:center; display:grid; gap:10px;">
       <div>Restart from Level 1?</div>
-      <div style="opacity:0.8;">High score stays saved.</div>
+      <div style="opacity:0.8;">${hsMsg}</div>
       <div style="display:flex; gap:8px; justify-content:center;">
         <button id="yes">Yes</button><button id="no">No</button>
       </div>
@@ -1062,6 +1067,7 @@ function openGameOptions(){
         <span>Auto-skip How To Play popups</span>
       </label>
       <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button id="opt-reset">Reset Progress</button>
         <button id="opt-close">Back</button>
       </div>
     </div>
@@ -1074,4 +1080,32 @@ function openGameOptions(){
   vol.oninput = ()=> { const v = Math.max(0, Math.min(100, Number(vol.value)||0)); vv.textContent = v+'%'; try{ localStorage.setItem('menu_volume', String(v)); }catch{} };
   sk.onchange = ()=> { try{ sk.checked ? localStorage.setItem('runner_skip_htp','1') : localStorage.removeItem('runner_skip_htp'); }catch{} };
   overlay.querySelector('#opt-close').onclick = ()=> { overlay.remove(); overlay=null; };
+  overlay.querySelector('#opt-reset').onclick = ()=> confirmResetProgress();
+}
+
+function confirmResetProgress(){
+  showOverlay(`
+    <div style="display:grid;gap:10px;min-width:280px;">
+      <div style="font-weight:700;">Type RESET MY HIGH to confirm</div>
+      <input id="rst-in" type="text" placeholder="RESET MY HIGH" autocomplete="off" autocapitalize="off" spellcheck="false" />
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button id="rst-ok">Confirm</button>
+        <button id="rst-cancel">Cancel</button>
+      </div>
+    </div>
+  `);
+  styleOverlayButtons();
+  const inp = overlay.querySelector('#rst-in');
+  inp.className = 'pixel-input big';
+  overlay.querySelector('#rst-ok').classList.add('pixel-btn-lg');
+  inp.onpaste = (e)=> e.preventDefault(); inp.oncontextmenu = (e)=> e.preventDefault();
+  overlay.querySelector('#rst-ok').onclick = ()=> {
+    if (inp.value === 'RESET MY HIGH'){
+      try { localStorage.removeItem('runner_highscore'); } catch {}
+      highScore = 0; tip('Progress reset.'); draw();
+      overlay.remove(); overlay=null;
+    }
+  };
+  overlay.querySelector('#rst-cancel').onclick = ()=> { overlay.remove(); overlay=null; };
+  inp.focus();
 }
