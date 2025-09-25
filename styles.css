@@ -355,3 +355,15 @@ body.in-game .menu, body.in-game #viz, body.in-game #bg, body.in-game .start-scr
 .vol-row input[type="checkbox"]:checked, .pixel-check:checked { background:#ffa733; border-color:#ffa733; }
 .vol-row input[type="checkbox"]::after, .pixel-check::after { content:""; display:block; width:10px; height:10px; margin:1px auto 0; background:rgba(0,0,0,0.6); clip-path: polygon(10% 50%, 0 60%, 40% 100%, 100% 20%, 90% 10%, 40% 70%); opacity:0; }
 .vol-row input[type="checkbox"]:checked::after, .pixel-check:checked::after { opacity:1; }
+
+.pixel-input { width:100%; background:#111; color:#fff; border:2px solid rgba(255,255,255,0.22); box-shadow:0 0 0 4px #000 inset; padding:12px 14px; font-family:"Space Mono", monospace; font-size:18px; }
+.pixel-input::placeholder { color:rgba(255,255,255,0.45); }
+.pixel-input:focus { outline:2px solid rgba(255,255,255,0.35); outline-offset:2px; }
+.pixel-input.big { padding:14px 16px; font-size:22px; }
+.pixel-btn-lg { font-size:16px !important; padding:12px 16px !important; }
+
+.version-badge{position:fixed; z-index:5; padding:6px 8px; color:#fff; opacity:0.55; font-family:"Space Mono", monospace; font-size:14px; text-shadow:0 2px 0 #000;}
+.version-menu{top:8px; right:10px;}
+.version-game{display:none; left:10px; bottom:8px;}
+body.in-game .version-menu{display:none;}
+body.in-game .version-game{display:block;}
