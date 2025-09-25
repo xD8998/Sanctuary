@@ -333,6 +333,7 @@ const closeSettings = document.getElementById('close-settings');
 const volSlider = document.getElementById('vol');
 const volValue = document.getElementById('vol-value');
 const skipHtpCb = document.getElementById('skip-htp');
+const resetBtn = document.getElementById('reset-progress');
 
 function openSettings() {
   document.body.classList.add('settings-open');
@@ -368,6 +369,32 @@ skipHtpCb.addEventListener('change', () => {
     else localStorage.removeItem('runner_skip_htp');
   } catch {}
 });
+
+resetBtn.addEventListener('click', () => {
+  playSfx('click');
+  showResetPrompt(settingsEl.querySelector('.settings-card'), () => {
+    try { localStorage.removeItem('runner_highscore'); } catch {}
+    playSfx('back');
+  });
+});
+
+function showResetPrompt(parentCard, onConfirm){
+  const wrap = document.createElement('div');
+  wrap.style.position='absolute'; wrap.style.inset='0'; wrap.style.background='rgba(0,0,0,0.72)'; wrap.style.display='grid'; wrap.style.placeItems='center';
+  const box = document.createElement('div');
+  box.style.background='#0b0b0b'; box.style.color='#fff'; box.style.padding='18px'; box.style.boxShadow='0 0 0 4px #000 inset, 0 0 0 8px rgba(255,255,255,0.12) inset';
+  box.style.fontFamily='"Space Mono", monospace'; box.innerHTML = '<div style="margin-bottom:8px;font-weight:700;">Type RESET MY HIGH to confirm</div>';
+  const input = document.createElement('input'); input.type='text'; input.placeholder='RESET MY HIGH'; input.autocomplete='off'; input.autocapitalize='off'; input.spellcheck=false;
+  input.className = 'pixel-input big';
+  input.onpaste = (e)=> e.preventDefault(); input.oncontextmenu = (e)=> e.preventDefault();
+  const row = document.createElement('div'); row.style.display='flex'; row.style.gap='8px'; row.style.marginTop='10px';
+  const yes = document.createElement('button'); yes.textContent='Confirm'; const no = document.createElement('button'); no.textContent='Cancel';
+  yes.classList.add('pixel-btn-lg');
+  [yes,no].forEach(b=>{ b.style.background='transparent'; b.style.color='#fff'; b.style.border='2px solid rgba(255,255,255,0.25)'; b.style.padding='8px 12px'; b.style.boxShadow='0 0 0 4px #000 inset'; b.style.fontFamily='"Space Mono", monospace'; });
+  yes.onclick=()=>{ if (input.value === 'RESET MY HIGH'){ onConfirm?.(); wrap.remove(); } };
+  no.onclick=()=> wrap.remove();
+  box.appendChild(input); row.appendChild(yes); row.appendChild(no); box.appendChild(row); wrap.appendChild(box); parentCard.appendChild(wrap); input.focus();
+}
 
 function createBitcrusher(ctx, { bits = 12, reduction = 3 } = {}) {
   const sp = ctx.createScriptProcessor(1024, 2, 2);
