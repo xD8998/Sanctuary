@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Sanctuary</title>
+  <link rel="icon" type="image/png" href="ghost.png">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
@@ -60,6 +61,7 @@
         <input id="skip-htp" type="checkbox" />
         <span>Auto-skip How To Play popups</span>
       </label>
+      <button id="reset-progress" class="close-btn" aria-label="Reset progress">Reset Progress</button>
       <button id="close-settings" class="close-btn" aria-label="Close settings">Back</button>
     </div>
   </div>
@@ -68,6 +70,7 @@
   <div id="game-root" class="game-root" hidden aria-live="polite"></div>
 
   <audio id="track" src="sanctuary_zero_ne_mi_jc_KLICKAUD.mp3" preload="auto" loop playsinline></audio>
+  <div id="version-menu" class="version-badge version-menu">V1</div>
 
   <script type="module" src="main.js"></script>
 </body>
