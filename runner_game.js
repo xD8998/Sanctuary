@@ -20,6 +20,8 @@ let devPanel = null, devCountsEl = null;
 let _regenTries = 0;
 let _skipPopups = false, _resetArmed = false, _resetTimer = 0;
 let versionElGame = null;
+// add unload saver
+let onUnload = null;
 
 export async function initGame(args={}) {
   actx = args.actx || new (window.AudioContext || window.webkitAudioContext)();
@@ -53,6 +55,9 @@ export async function initGame(args={}) {
   // listen for movement keys
   window.addEventListener('keydown', onKey);
   window.addEventListener('resize', resize);
+  // save high score on refresh/close
+  onUnload = () => saveHighIfNeeded();
+  window.addEventListener('beforeunload', onUnload);
   genLevel(1);
   resize();
   _skipPopups = (localStorage.getItem('runner_skip_htp') === '1');
@@ -74,6 +79,7 @@ export function destroyGame(){
   if (fadeLayer) { try { fadeLayer.remove(); } catch{} fadeLayer=null; }
   window.removeEventListener('keydown', onKey);
   window.removeEventListener('resize', resize);
+  if (onUnload) { window.removeEventListener('beforeunload', onUnload); onUnload = null; }
   if (ro) { try { ro.disconnect(); } catch {} ro = null; }
   if (root) root.innerHTML='';
   versionElGame = null;
@@ -117,6 +123,8 @@ function genLevel(n) {
   // validity: must be solvable (key considered, blues ignored) and have a safe opening move (no forced red)
   const ok = slideSolvable(walls, !doorUnlocked, green) && hasSafeFirstMove();
   if (!ok) { if (++_regenTries < 80) return genLevel(n); else _regenTries = 0; } else { _regenTries = 0; }
+  // keep score synced: always one below level
+  score = Math.max(0, level - 1);
   tip(level>=4 ? (doorUnlocked?'Blues appeared!':'Door locked! Find the key.')
                : (level>=2 ? 'Red ghosts prowl.' : 'Reach the door →'));
   draw();
@@ -150,6 +158,8 @@ function removeAt(arr,x,y){ const i = arr.findIndex(a=>a.x===x&&a.y===y); if(i>=
 function onKey(e){
   // instant reset: double R (second R confirms)
   if (e.key === 'r' || e.key === 'R') {
+    // block double-R when any non-restart overlay/tutorial is open
+    if (tutOverlay || (overlay && !_resetArmed)) return;
     e.preventDefault();
     if (_resetArmed) { _resetArmed = false; clearTimeout(_resetTimer); if (overlay) { overlay.remove(); overlay=null; } restartRun(); return; }
     _resetArmed = true;
@@ -230,7 +240,9 @@ function slide(dir){
       spawnBurst(player.x, player.y, '#82ff8a', 14);
     }
     if (doorUnlocked && player.x===door.x && player.y===door.y) {
-      winSfx(); spawnBurst(player.x, player.y, '#ffd84a', 16); score++; genLevel(level+1); moveLock=false; return;
+      winSfx(); spawnBurst(player.x, player.y, '#ffd84a', 16); score++;
+      saveHighIfNeeded();
+      genLevel(level+1); moveLock=false; return;
     }
     // after-move: blue may shuffle
     shuffleBlues();
@@ -607,6 +619,7 @@ function styleOverlayButtons(){
 }
 
 function restartRun(){
+  if (!dev.enabled && score>highScore){ highScore=score; try{ localStorage.setItem('runner_highscore', String(highScore)); }catch{} }
   score = 0; level = 1; doorUnlocked = false; powerTime = 0; moveLock = false;
   particles = []; // clear any old trails
   genLevel(1);
@@ -640,7 +653,7 @@ function confirmMenu(fromDeath=false){
     </div>
   `);
   styleOverlayButtons();
-  overlay.querySelector('#yes').onclick=()=>{ overlay.remove(); overlay=null; particles=[]; running=false; fadeOutAndExit(); };
+  overlay.querySelector('#yes').onclick=()=>{ overlay.remove(); overlay=null; particles=[]; running=false; saveHighIfNeeded(); fadeOutAndExit(); };
   overlay.querySelector('#no').onclick=()=>{ overlay.remove(); overlay=null; moveLock=false; if (!fromDeath) running=true; };
 }
 
@@ -663,6 +676,12 @@ function winSfx(){ blip(660,0.08,'square',0.26); setTimeout(()=> blip(880,0.08,'
 
 /* utils */
 const smallDelay = (ms)=> new Promise(r=> setTimeout(r, ms));
+function saveHighIfNeeded(){
+  if (!dev.enabled && score > highScore) {
+    highScore = score;
+    try { localStorage.setItem('runner_highscore', String(highScore)); } catch {}
+  }
+}
 
 /* add particle helpers */
 function spawnTrail(x,y){ 
