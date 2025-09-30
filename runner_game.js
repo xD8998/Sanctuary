@@ -9,7 +9,7 @@ let overlay=null, highScore=0, ro=null, fadeLayer=null;
 // new progression + walls
 let turnCount=0, redsSpawned=false, bluesSpawned=false, walls=[];
 /* new rare ghosts and drift power */
-let purples=[], oranges=[], orangeDrift=false, pendingTurn=null, orangeTint=0;
+let purples=[], oranges=[], driftCharges=0, pendingTurn=null, orangeTint=0;
 // tutorials
 let tutOverlay=null, advancedShown=false;
 // new advanced pickups (lvl > 13)
@@ -68,7 +68,7 @@ export async function initGame(args={}) {
   fadeInGame(); // visual fade-in
   loop(performance.now());
   // version badge (bottom-left, in-game)
-  if (!versionElGame) { versionElGame = document.createElement('div'); versionElGame.className='version-badge version-game'; versionElGame.textContent='V1'; root.appendChild(versionElGame); }
+  if (!versionElGame) { versionElGame = document.createElement('div'); versionElGame.className='version-badge version-game'; versionElGame.textContent='V1.01'; root.appendChild(versionElGame); }
 }
 
 export function destroyGame(){
@@ -93,7 +93,7 @@ function genLevel(n) {
   player = { x:0, y: Math.floor(gridH/2) };
   door = { x:gridW-1, y: Math.floor(gridH/2) };
   reds = []; blues = []; green = null;
-  purples=[]; oranges=[]; orangeDrift=false; pendingTurn=null; orangeTint=0;
+  purples=[]; oranges=[]; driftCharges=0; pendingTurn=null; orangeTint=0;
   doorUnlocked = true; powerTime = 0; walls=[]; particles = [];
   bats=[]; beacons=[]; flyingBat=null;
   const blockDoor = level>=4 && Math.random()<0.6; generateWallsAndKey(blockDoor);
@@ -113,7 +113,10 @@ function genLevel(n) {
     const avoid = avoidSet([player, door, ...(green?[green]:[]), ...walls, ...reds, ...blues]);
     const purpleCount = Math.min(3, Math.floor(Math.random()*3)+1);
     for (let i=0;i<purpleCount;i++){ const p = placeOne(avoid, true); purples.push(p); }
-    if (Math.random() < 0.6) { const o = placeOne(avoid, true); oranges.push(o); }
+    let orangeCount = (level > 15)
+      ? (Math.random()<0.35 ? 1 + (Math.random()<0.18 ? 1 + (Math.random()<0.08 ? 1 : 0) : 0) : 0)
+      : (Math.random() < 0.6 ? 1 : 0);
+    for (let i=0;i<orangeCount;i++){ const o = placeOne(avoid, true); oranges.push(o); }
   }
   if (level > 13) {
     const avoid = avoidSet([player, door, ...(green?[green]:[]), ...walls, ...reds, ...blues, ...purples, ...oranges]);
@@ -158,8 +161,14 @@ function removeAt(arr,x,y){ const i = arr.findIndex(a=>a.x===x&&a.y===y); if(i>=
 function onKey(e){
   // instant reset: double R (second R confirms)
   if (e.key === 'r' || e.key === 'R') {
-    // block double-R when any non-restart overlay/tutorial is open
-    if (tutOverlay || (overlay && !_resetArmed)) return;
+    // block when tutorial open; allow in specific overlays
+    if (tutOverlay) return;
+    const kind = overlay?.dataset?.kind || '';
+    if (overlay && !_resetArmed) {
+      if (kind === 'confirmRestart') { e.preventDefault(); overlay.querySelector('#yes')?.click(); return; }
+      if (kind === 'death') { e.preventDefault(); overlay.querySelector('#ovr-restart')?.click(); return; }
+      if (kind !== 'restart') return;
+    }
     e.preventDefault();
     if (_resetArmed) { _resetArmed = false; clearTimeout(_resetTimer); if (overlay) { overlay.remove(); overlay=null; } restartRun(); return; }
     _resetArmed = true;
@@ -172,6 +181,7 @@ function onKey(e){
         </div>
       </div>
     `);
+    overlay.dataset.kind = 'restart';
     styleOverlayButtons();
     overlay.querySelector('#yes').onclick=()=>{ _resetArmed=false; if (overlay) { overlay.remove(); overlay=null; } restartRun(); };
     overlay.querySelector('#no').onclick=()=>{ _resetArmed=false; if (overlay) { overlay.remove(); overlay=null; } };
@@ -182,7 +192,7 @@ function onKey(e){
   if (!running || tutOverlay || overlay) return;
   if (moveLock) {
     // allow setting mid-slide turn when orange drift active
-    if (orangeDrift || dev.slowDrift) {
+    if (driftCharges>0 || dev.slowDrift) {
       if (e.key==='ArrowRight' || e.key==='d' || e.key==='D') pendingTurn={x:1,y:0};
       else if (e.key==='ArrowLeft' || e.key==='a' || e.key==='A') pendingTurn={x:-1,y:0};
       else if (e.key==='ArrowUp' || e.key==='w' || e.key==='W') pendingTurn={x:0,y:-1};
@@ -229,7 +239,8 @@ function slide(dir){
     // orange ghost pickup
     const oi = oranges.findIndex(o=> o.x===player.x && o.y===player.y);
     if (oi>=0 && !dev.antiOrange) {
-      oranges.splice(oi,1); orangeDrift=true; orangeTint=1.0; tip('Orange drift! Slow-mo + one mid-slide turn.');
+      oranges.splice(oi,1); driftCharges++; orangeTint=1.0;
+      tip(driftCharges>1 ? 'Drift +1' : 'Drift');
       spawnBurst(player.x, player.y, '#ff9b42', 18);
     }
     // purple ghost effect
@@ -267,24 +278,24 @@ function animateMove(path, done, initialDir){
     }
     // trigger pass-through pickups/effects
     const oi = oranges.findIndex(o=> o.x===player.x && o.y===player.y);
-    if (oi>=0){ if (!dev.antiOrange){ oranges.splice(oi,1); orangeDrift=true; orangeTint=1.0; tip('Orange drift! Slow-mo + one mid-slide turn.'); spawnBurst(player.x, player.y, '#ff9b42', 18); } }
+    if (oi>=0){ if (!dev.antiOrange){ oranges.splice(oi,1); driftCharges++; orangeTint=1.0; tip(driftCharges>1 ? 'Drift +1' : 'Drift'); spawnBurst(player.x, player.y, '#ff9b42', 18); } }
     const pi = purples.findIndex(p=> p.x===player.x && p.y===player.y);
     if (pi>=0){ if (!dev.antiPurple){ applyPurpleEffect(); purples.splice(pi,1); } }
     // mid-slide turn if orange drift pending
-    if ((orangeDrift || dev.slowDrift) && pendingTurn) {
+    if ((driftCharges>0 || dev.slowDrift) && pendingTurn) {
       const dir = pendingTurn; pendingTurn = null;
       if (!(curDir && dir.x===curDir.x && dir.y===curDir.y)) {
         const newSeg = computeSegmentFrom(player.x, player.y, dir);
-        if (newSeg.length) { if (!dev.slowDrift) orangeDrift = false; path = newSeg; i = 0; curDir = dir; }
+        if (newSeg.length) { if (!dev.slowDrift) { driftCharges = Math.max(0, driftCharges - 1); } path = newSeg; i = 0; curDir = dir; }
       }
     }
     i++;
     if (i<path.length) {
-      if (orangeDrift || orangeTint>0 || dev.slowDrift) setTimeout(()=> raf = requestAnimationFrame(step), 90);
+      if (driftCharges>0 || orangeTint>0 || dev.slowDrift) setTimeout(()=> raf = requestAnimationFrame(step), 90);
       else raf = requestAnimationFrame(step);
     } else done();
   };
-  if (orangeDrift || orangeTint>0 || dev.slowDrift) setTimeout(()=> raf = requestAnimationFrame(step), 90);
+  if (driftCharges>0 || orangeTint>0 || dev.slowDrift) setTimeout(()=> raf = requestAnimationFrame(step), 90);
   else raf = requestAnimationFrame(step);
 }
 
@@ -447,7 +458,7 @@ function draw(){
   // hitboxes (DEV)
   if (dev.showHit){ drawHitboxes(); }
   // HUD
-  hud.innerHTML = `LVL ${level} | SCORE ${score} | HIGH ${highScore}` + (powerTime>0 ? ` | POWER ${powerTime.toFixed(1)}s` : '') + ((orangeDrift||dev.slowDrift)?` | DRIFT`:``) + (dev.enabled?` | DEV`:``);
+  hud.innerHTML = `LVL ${level} | SCORE ${score} | HIGH ${highScore}` + (powerTime>0 ? ` | POWER ${powerTime.toFixed(1)}s` : '') + ((driftCharges>0||dev.slowDrift)?` | DRIFT${dev.slowDrift?' INF':(driftCharges>1?' +'+(driftCharges-1):'')}`:``) + (dev.enabled?` | DEV`:``);
   if (devCountsEl) devCountsEl.textContent = debugCountsText();
 }
 
@@ -600,6 +611,7 @@ function gameOver(){
       </div>
     </div>
   `);
+  overlay.dataset.kind = 'death';
   styleOverlayButtons();
   overlay.querySelector('#ovr-restart').onclick = ()=> { overlay.remove(); overlay=null; restartRun(); };
   overlay.querySelector('#ovr-menu').onclick = ()=> { overlay.remove(); overlay=null; fadeOutAndExit(); };
@@ -637,6 +649,7 @@ function confirmRestart(){
       </div>
     </div>
   `);
+  overlay.dataset.kind = 'confirmRestart';
   styleOverlayButtons();
   overlay.querySelector('#yes').onclick=()=>{ overlay.remove(); overlay=null; restartRun(); };
   overlay.querySelector('#no').onclick=()=>{ overlay.remove(); overlay=null; };
@@ -685,7 +698,7 @@ function saveHighIfNeeded(){
 
 /* add particle helpers */
 function spawnTrail(x,y){ 
-  const c = (orangeDrift || orangeTint>0 || dev.slowDrift) ? '#ffb773' : '#8bd3ff';
+  const c = ((driftCharges>0) || orangeTint>0 || dev.slowDrift) ? '#ffb773' : '#8bd3ff';
   if (Math.random()<0.7) particles.push({x,y,c,s:0.5,a:0.35,vx:0,vy:0,life:0.3});
 }
 function spawnBurst(x,y,color,count=12){ for(let i=0;i<count;i++){ particles.push({x,y,c:color,s:0.4+Math.random()*0.5,a:0.6,vx:(Math.random()*2-1)*0.2,vy:(Math.random()*2-1)*0.2,life:0.5+Math.random()*0.5}); } }
@@ -1105,6 +1118,7 @@ function openGameOptions(){
 function confirmResetProgress(){
   showOverlay(`
     <div style="display:grid;gap:10px;min-width:280px;">
+      <div style="color:#ff5a5a;font-weight:800;">WARNING THIS WILL DELETE YOUR SAVED HIGH SCORE (AND RESTART YOU TO LEVEL 1)</div>
       <div style="font-weight:700;">Type RESET MY HIGH to confirm</div>
       <input id="rst-in" type="text" placeholder="RESET MY HIGH" autocomplete="off" autocapitalize="off" spellcheck="false" />
       <div style="display:flex;gap:8px;justify-content:flex-end;">
@@ -1123,6 +1137,7 @@ function confirmResetProgress(){
       try { localStorage.removeItem('runner_highscore'); } catch {}
       highScore = 0; tip('Progress reset.'); draw();
       overlay.remove(); overlay=null;
+      restartRun(); // restart to Level 1 and reshuffle even if already there
     }
   };
   overlay.querySelector('#rst-cancel').onclick = ()=> { overlay.remove(); overlay=null; };
