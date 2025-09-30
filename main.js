@@ -383,7 +383,7 @@ function showResetPrompt(parentCard, onConfirm){
   wrap.style.position='absolute'; wrap.style.inset='0'; wrap.style.background='rgba(0,0,0,0.72)'; wrap.style.display='grid'; wrap.style.placeItems='center';
   const box = document.createElement('div');
   box.style.background='#0b0b0b'; box.style.color='#fff'; box.style.padding='18px'; box.style.boxShadow='0 0 0 4px #000 inset, 0 0 0 8px rgba(255,255,255,0.12) inset';
-  box.style.fontFamily='"Space Mono", monospace'; box.innerHTML = '<div style="margin-bottom:8px;font-weight:700;">Type RESET MY HIGH to confirm</div>';
+  box.style.fontFamily='"Space Mono", monospace'; box.innerHTML = '<div style="margin-bottom:6px;color:#ff5a5a;font-weight:800;">WARNING THIS WILL DELETE YOUR SAVED HIGH SCORE</div><div style="margin-bottom:8px;font-weight:700;">Type RESET MY HIGH to confirm</div>';
   const input = document.createElement('input'); input.type='text'; input.placeholder='RESET MY HIGH'; input.autocomplete='off'; input.autocapitalize='off'; input.spellcheck=false;
   input.className = 'pixel-input big';
   input.onpaste = (e)=> e.preventDefault(); input.oncontextmenu = (e)=> e.preventDefault();
