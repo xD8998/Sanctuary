@@ -68,7 +68,7 @@ export async function initGame(args={}) {
   fadeInGame(); // visual fade-in
   loop(performance.now());
   // version badge (bottom-left, in-game)
-  if (!versionElGame) { versionElGame = document.createElement('div'); versionElGame.className='version-badge version-game'; versionElGame.textContent='V1.01'; root.appendChild(versionElGame); }
+  if (!versionElGame) { versionElGame = document.createElement('div'); versionElGame.className='version-badge version-game'; versionElGame.textContent='V1.011'; root.appendChild(versionElGame); }
 }
 
 export function destroyGame(){
