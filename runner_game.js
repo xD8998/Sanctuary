@@ -68,7 +68,7 @@ export async function initGame(args={}) {
   fadeInGame(); // visual fade-in
   loop(performance.now());
   // version badge (bottom-left, in-game)
-  if (!versionElGame) { versionElGame = document.createElement('div'); versionElGame.className='version-badge version-game'; versionElGame.textContent='V1.011'; root.appendChild(versionElGame); }
+  if (!versionElGame) { versionElGame = document.createElement('div'); versionElGame.className='version-badge version-game'; versionElGame.textContent='V1.02'; root.appendChild(versionElGame); }
 }
 
 export function destroyGame(){
@@ -130,7 +130,7 @@ function genLevel(n) {
   score = Math.max(0, level - 1);
   tip(level>=4 ? (doorUnlocked?'Blues appeared!':'Door locked! Find the key.')
                : (level>=2 ? 'Red ghosts prowl.' : 'Reach the door →'));
-  draw();
+  resize();
   // advanced tutorial when purple/orange arrive
   maybeShowAdvancedTutorial();
 }
